@@ -1,7 +1,6 @@
 "use client";
 import "client-only";
 
-import { css, keyframes } from "@emotion/css";
 import { HeartIcon as OutlikeHeartIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as SolidHeartIcon } from "@heroicons/react/24/solid";
 import clsx from "clsx";
@@ -113,7 +112,8 @@ export const LikeButton: React.FC<{ className?: string; videoId: string }> = ({
               ["w-4"],
               ["h-4"],
               ["transition-colors", "duration-75"],
-              ["text-pink-600", "group-hover:text-pink-500"],
+              ["text-pink-600", "group-hover:text-pink-500"]
+              /* TODO: emotion can't use production
               css`
                 animation-name: ${keyframes`
                   from {
@@ -134,6 +134,7 @@ export const LikeButton: React.FC<{ className?: string; videoId: string }> = ({
                   1.395
                 );
               `
+              */
             )}
           />
         )}

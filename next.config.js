@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  runtime: "experimental-edge",
   reactStrictMode: true,
   swcMinify: true,
   images: {
@@ -8,6 +7,7 @@ const nextConfig = {
   },
   experimental: {
     appDir: true,
+    runtime: "experimental-edge",
   },
 };
 module.exports = nextConfig;

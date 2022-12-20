@@ -1,6 +1,5 @@
 "use client";
 
-import { css } from "@emotion/css";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 import Image from "next/image";
@@ -274,12 +273,14 @@ export const SearchBox: React.FC<{ className?: string }> = ({ className }) => {
         ["relative"],
         ["w-full"],
         ["border"],
-        ["bg-white"],
+        ["bg-white"]
+        /* TODO: emotion can't use production
         css`
           &:focus-within {
             box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.125);
           }
         `
+        */
       )}
     >
       <div
