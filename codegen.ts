@@ -7,13 +7,6 @@ const config: CodegenConfig = {
   generates: {
     "src/gql/": {
       preset: "client",
-      plugins: [
-        {
-          "graphql-codegen-typescript-mock-data": {
-            terminateCircularRelationships: true,
-          },
-        },
-      ],
       config: {
         dedupeFragments: true, // https://zenn.dev/link/comments/94104de0ddecfc
         scalars: {
