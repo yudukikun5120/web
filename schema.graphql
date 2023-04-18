@@ -107,6 +107,16 @@ type ChangeMylistShareRangeSucceededPayload {
 
 union ChangeMylistShareReturnUnion = ChangeMylistShareRangeOtherErrorsFallback | ChangeMylistShareRangeSucceededPayload | MutationInvalidMylistIdError | MutationMylistNotFoundError | MutationWrongMylistHolderError
 
+type ChangeUserDisplayNameInvalidNameError {
+  name: String!
+}
+
+union ChangeUserDisplayNameReturnUnion = ChangeUserDisplayNameInvalidNameError | ChangeUserDisplayNameSucceededPayload
+
+type ChangeUserDisplayNameSucceededPayload {
+  user: User!
+}
+
 input CreateMylistGroupInput {
   title: String!
 }
@@ -136,17 +146,6 @@ union CreateMylistReturnUnion = CreateMylistOtherErrorsFallback | CreateMylistSu
 
 type CreateMylistSucceededPayload {
   mylist: Mylist!
-}
-
-input CreateTemporaryUserInput {
-  alias: String!
-  displayName: String!
-}
-
-union CreateTemporaryUserReturnUnion = CreateTemporaryUserSucceededPayload
-
-type CreateTemporaryUserSucceededPayload {
-  id: ID!
 }
 
 scalar DateTime
@@ -246,6 +245,18 @@ input FindTagsInputOrder {
   updatedAt: SortOrder
 }
 
+input FindUncheckedNicovideoRegistrationRequestsInput {
+  after: String
+  before: String
+  first: Int
+  last: Int
+  orderBy: FindUncheckedNicovideoRegistrationRequestsOrderBy! = {createdAt: DESC}
+}
+
+input FindUncheckedNicovideoRegistrationRequestsOrderBy {
+  createdAt: SortOrder
+}
+
 input FindUserInput {
   name: String
 }
@@ -304,9 +315,9 @@ type Mutation {
   addTagToVideo(input: AddTagToVideoInput!): AddTagToVideoPayload!
   addVideoToMylist(input: AddVideoToMylistInput!): AddVideoToMylistReturnUnion!
   changeMylistShareRange(input: ChangeMylistShareRangeInput!): ChangeMylistShareReturnUnion!
+  changeUserDisplayName(renameTo: String!): ChangeUserDisplayNameReturnUnion!
   createMylist(input: CreateMylistInput!): CreateMylistReturnUnion!
   createMylistGroup(input: CreateMylistGroupInput!): CreateMylistGroupPayload!
-  createTemporaryUser(input: CreateTemporaryUserInput!): CreateTemporaryUserReturnUnion!
 
   """非明示的なタグの親子関係を明示的に昇格する"""
   explicitizeTagParent(input: ExplicitizeTagParentInput!): ExplicitizeTagParentReturnUnion!
@@ -327,7 +338,9 @@ type Mutation {
   requestNicovideoRegistration(input: RequestNicovideoRegistrationInput!): RequestNicovideoRegistrationReturnUnion!
   resovleSemitag(semitagId: ID!, tagId: ID!): ResolveSemitagReturnUnion!
   undoLikeVideo(input: UndoLikeVideoInput!): UndoLikeVideoReturnUnion!
-  verifyTemporaryUser: VerifyTemporaryUserReturnUnion!
+
+  """通知を見たことにする"""
+  watchNotifications(input: WatchNotificationsInput!): WatchNotificationsReturnUnion!
 }
 
 """MylistのIDとして無効なIDを入力した場合のエラー"""
@@ -619,6 +632,14 @@ type NicovideoRegistrationRequestAccepting {
   video: Video!
 }
 
+type NicovideoRegistrationRequestAcceptingNotification implements Node & Notification {
+  accepting: NicovideoRegistrationRequestAccepting!
+  createdAt: DateTime!
+  id: ID!
+  notifyTo: User!
+  watched: Boolean!
+}
+
 union NicovideoRegistrationRequestChecking = NicovideoRegistrationRequestAccepting | NicovideoRegistrationRequestRejecting
 
 type NicovideoRegistrationRequestConnection {
@@ -637,6 +658,14 @@ type NicovideoRegistrationRequestRejecting {
   note: String
   rejectedBy: User!
   request: NicovideoRegistrationRequest!
+}
+
+type NicovideoRegistrationRequestRejectingNotification implements Node & Notification {
+  createdAt: DateTime!
+  id: ID!
+  notifyTo: User!
+  rejecting: NicovideoRegistrationRequestRejecting!
+  watched: Boolean!
 }
 
 type NicovideoRegistrationRequestSemitagging {
@@ -689,6 +718,33 @@ interface Node {
   id: ID!
 }
 
+interface Notification implements Node {
+  createdAt: DateTime!
+  id: ID!
+  notifyTo: User!
+  watched: Boolean!
+}
+
+type NotificationConnection {
+  edges: [NotificationEdge!]!
+  nodes: [Notification!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type NotificationEdge {
+  cursor: String!
+  node: Notification!
+}
+
+input NotificationsFilter {
+  watched: Boolean
+}
+
+input NotificationsOrderBy {
+  createdAt: SortOrder
+}
+
 type PageInfo {
   endCursor: String
   hasNextPage: Boolean!
@@ -712,6 +768,7 @@ type Query {
   findSemitags(after: String, before: String, checked: Boolean, first: Int, last: Int, orderBy: FindSemitagsOrderBy! = {name: ASC}): SemitagConnection!
   findTag(input: FindTagInput!): Tag
   findTags(input: FindTagsInput!): TagConnection!
+  findUncheckedNicovideoRegistrationRequests(input: FindUncheckedNicovideoRegistrationRequestsInput!): NicovideoRegistrationRequestConnection!
   findUser(input: FindUserInput!): User
   findVideo(input: FindVideoInput!): Video
   findVideos(after: String, before: String, first: Int, last: Int, orderBy: FindVideosOrderBy! = {createdAt: DESC}): VideoConnection!
@@ -720,11 +777,13 @@ type Query {
   getMylistGroup(id: ID!): MylistGroup!
   getNicovideoRegistrationRequest(id: ID!): NicovideoRegistrationRequest!
   getNicovideoVideoSource(id: ID!): NicovideoVideoSource!
+  getNotification(id: ID!): Notification!
   getSemitag(id: ID!): Semitag!
   getTag(id: ID!): Tag!
   getUser(id: ID!): User!
   getVideo(id: ID!): Video!
   getYoutubeVideoSource(id: ID!): YoutubeVideoSource!
+  notifications(after: String, before: String, filter: NotificationsFilter! = {}, first: Int, last: Int, orderBy: NotificationsOrderBy! = {createdAt: DESC}): NotificationConnection!
   searchTags(input: SearchTagInput!): SearchTagsPayload!
   searchVideos(input: SearchVideoInput!): SearchVideosPayload!
   whoami: User!
@@ -861,10 +920,6 @@ type RegisterTagTagIdCollidedBetweenExplicitAndImplicitError {
   tagId: String!
 }
 
-enum RegisterVideoFromNicovideoFailedMessage {
-  INTERNAL_SERVER_ERROR
-}
-
 input RegisterVideoFromNicovideoInput {
   extraTitles: [String!]! = []
   primaryThumbnailUrl: String!
@@ -880,12 +935,7 @@ type RegisterVideoFromNicovideoInvalidNicovideoSourceIdError {
   sourceID: String!
 }
 
-"""その他のエラー"""
-type RegisterVideoFromNicovideoOtherErrorsFallback {
-  message: RegisterVideoFromNicovideoFailedMessage!
-}
-
-union RegisterVideoFromNicovideoPayload = MutationInvalidNicovideoRegistrationRequestIdError | MutationInvalidTagIdError | MutationNicovideoRegistrationRequestAlreadyCheckedError | MutationNicovideoRegistrationRequestNotFoundError | MutationTagNotFoundError | RegisterVideoFromNicovideoInvalidNicovideoSourceIdError | RegisterVideoFromNicovideoOtherErrorsFallback | RegisterVideoFromNicovideoSemitagNamesDuplicatedError | RegisterVideoFromNicovideoSemitagTooLongError | RegisterVideoFromNicovideoSucceededPayload | RegisterVideoFromNicovideoTagIdsDuplicatedError
+union RegisterVideoFromNicovideoPayload = MutationInvalidNicovideoRegistrationRequestIdError | MutationInvalidTagIdError | MutationNicovideoRegistrationRequestAlreadyCheckedError | MutationNicovideoRegistrationRequestNotFoundError | MutationTagNotFoundError | RegisterVideoFromNicovideoInvalidNicovideoSourceIdError | RegisterVideoFromNicovideoSemitagNamesDuplicatedError | RegisterVideoFromNicovideoSemitagTooLongError | RegisterVideoFromNicovideoSucceededPayload | RegisterVideoFromNicovideoTagIdsDuplicatedError
 
 """仮タグの名前が重複している"""
 type RegisterVideoFromNicovideoSemitagNamesDuplicatedError {
@@ -952,21 +1002,12 @@ input RejectNicovideoRegistrationRequestInput {
   requestId: ID!
 }
 
-enum RejectNicovideoRegistrationRequestOtherErrorMessage {
-  INTERNAL_SERVER_ERROR
-}
-
-"""その他のエラー"""
-type RejectNicovideoRegistrationRequestOtherErrorsFallback {
-  message: RejectNicovideoRegistrationRequestOtherErrorMessage!
-}
-
 """リクエストが既に処理されている場合のエラー"""
 type RejectNicovideoRegistrationRequestRequestAlreadyCheckedError {
   request: NicovideoRegistrationRequest!
 }
 
-union RejectNicovideoRegistrationRequestReturnUnion = MutationInvalidNicovideoRegistrationRequestIdError | MutationNicovideoRegistrationRequestNotFoundError | RejectNicovideoRegistrationRequestOtherErrorsFallback | RejectNicovideoRegistrationRequestRequestAlreadyCheckedError | RejectNicovideoRegistrationRequestSucceededPayload
+union RejectNicovideoRegistrationRequestReturnUnion = MutationInvalidNicovideoRegistrationRequestIdError | MutationNicovideoRegistrationRequestNotFoundError | RejectNicovideoRegistrationRequestRequestAlreadyCheckedError | RejectNicovideoRegistrationRequestSucceededPayload
 
 type RejectNicovideoRegistrationRequestSucceededPayload {
   rejecting: NicovideoRegistrationRequestRejecting!
@@ -1062,16 +1103,7 @@ input RequestNicovideoRegistrationInputTagging {
   tagId: ID!
 }
 
-enum RequestNicovideoRegistrationOtherErrorMessage {
-  INTERNAL_SERVER_ERROR
-}
-
-"""その他のエラー"""
-type RequestNicovideoRegistrationOtherErrorsFallback {
-  message: RequestNicovideoRegistrationOtherErrorMessage!
-}
-
-union RequestNicovideoRegistrationReturnUnion = MutationInvalidTagIdError | MutationTagNotFoundError | RequestNicovideoRegistrationOtherErrorsFallback | RequestNicovideoRegistrationSucceededPayload | RequestNicovideoRegistrationVideoAlreadyRegisteredError
+union RequestNicovideoRegistrationReturnUnion = MutationInvalidTagIdError | MutationTagNotFoundError | RequestNicovideoRegistrationSucceededPayload | RequestNicovideoRegistrationVideoAlreadyRegisteredError
 
 type RequestNicovideoRegistrationSucceededPayload {
   request: NicovideoRegistrationRequest!
@@ -1442,10 +1474,11 @@ type UndoLikeVideoSucceededPayload {
 
 type User implements Node {
   displayName: String!
-  icon: String
+  hasRole(role: UserRole!): Boolean
+  icon: String!
   id: ID!
-  isAdministrator: Boolean!
-  isEditor: Boolean!
+  isAdministrator: Boolean! @deprecated(reason: "Use hasRole instead.")
+  isEditor: Boolean! @deprecated(reason: "Use hasRole instead.")
   likes: Mylist
   mylist(id: ID!): Mylist
   mylists(after: String, before: String, first: Int, last: Int, orderBy: UserMylistsOrderBy! = {createdAt: DESC}, range: [MylistShareRange!]! = [PUBLIC]): MylistConnection!
@@ -1461,10 +1494,9 @@ input UserNicovideoRegistrationRequestsOrderBy {
   createdAt: SortOrder
 }
 
-union VerifyTemporaryUserReturnUnion = VerifyTemporaryUserSucceededPayload
-
-type VerifyTemporaryUserSucceededPayload {
-  id: ID!
+enum UserRole {
+  ADMIN
+  EDITOR
 }
 
 type Video implements Node {
@@ -1710,6 +1742,16 @@ type VideoTitleUnsetPrimaryEvent implements Event & Node & VideoTitleEvent {
   series: String!
   user: User!
   videoTitle: VideoTitle!
+}
+
+input WatchNotificationsInput {
+  notificationIds: [ID!]!
+}
+
+union WatchNotificationsReturnUnion = WatchNotificationsSucceededPayload
+
+type WatchNotificationsSucceededPayload {
+  notifications: [Notification!]!
 }
 
 type YoutubeOriginalSource {
