@@ -1,14 +1,15 @@
-import "~/styles/globals.css";
+import "./globals.css";
 
 import clsx from "clsx";
 import type { Metadata } from "next";
 import React from "react";
 
-import Auth0Provider from "~/auth0/Provider";
 import { GlobalFooter } from "~/components/GlobalFooter";
 import GlobalNav from "~/components/GlovalNav";
 import { ToastProvider } from "~/components/Toaster";
-import UrqlProvider from "~/urql/Provider";
+
+import Auth0Provider from "./Auth0Provider";
+import UrqlProvider from "./UrqlProvider";
 
 export const metadata: Metadata = {
   title: "OtoMADB",
@@ -39,7 +40,7 @@ export default function RootLayout({
     <html lang="ja">
       <Auth0Provider>
         <UrqlProvider>
-          <body className={clsx(["relative"], ["bg-slate-50"])}>
+          <body className={clsx(["relative"], ["bg-gray-50"])}>
             <ToastProvider selector="#toast">
               <GlobalNav
                 className={clsx(
